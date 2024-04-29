@@ -14,7 +14,7 @@ const ContentAccordionDemo = () => {
     const [active, setActive] = useState<number | null>(1);
 
     return (
-        <div className="@container grid grid-cols-3 grid-rows-2 @3xl:grid-rows-1 items-stretch bg-background">
+        <div className="@container grid grid-cols-3 grid-rows-2 @3xl:grid-rows-1 items-stretch bg-background min-h-[500px]">
             <div className="relative h-auto w-auto col-span-3 @3xl:col-span-2">
                 {[1, 2, 3].map((n) => (
                     <Image

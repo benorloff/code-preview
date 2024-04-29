@@ -2,12 +2,12 @@
 
 import { useEffect, useRef, useState } from "react";
 
-import { useDebounceCallback, useResizeObserver } from "usehooks-ts";
+import { useResizeObserver } from "usehooks-ts";
 import { 
     ImperativePanelGroupHandle, 
     PanelResizeHandle,
     PanelGroup, 
-    Panel, 
+    Panel,
 } from "react-resizable-panels";
 
 import { Button } from "@/components/ui/button";
@@ -21,34 +21,41 @@ import {
     Smartphone, 
     Tablet 
 } from "lucide-react";
+import { cn } from "@/lib/utils";
 
-interface Device {
-    name: "desktop" | "tablet" | "smartphone" | undefined;
-    layout: [number, number, number];
-    icon: React.ReactNode;
-    disabled: boolean;
-}[]
+type Layout = [number, number, number];
 
 interface Size {
     width?: number;
     height?: number;
 }
 
+interface Device {
+    name: "desktop" | "tablet" | "smartphone" | undefined;
+    size: Size;
+    layout: Layout;
+    icon: React.ReactNode;
+    disabled: boolean;
+}
+
 const devices: {[key: string]: Device} = {
     desktop: {
         name: "desktop",
+        size: { width: 1024 },
         layout: [0,100,0],
         icon: <Laptop className="h-4 w-4" />,
         disabled: false,
     },
     tablet: {
         name: "tablet",
+        size: { width: 768 },
         layout: [20,60,20],
         icon: <Tablet className="h-4 w-4" />,
         disabled: false,
     },
     smartphone: {
         name: "smartphone",
+        size: { width: 384 },
         layout: [30,40,30],
         icon: <Smartphone className="h-4 w-4" />,
         disabled: false,
@@ -74,40 +81,52 @@ export const DemoPreview = ({
     const panelGroupRef = useRef<ImperativePanelGroupHandle>(null)
     const panelRef = useRef<HTMLDivElement>(null)
     const previewContainerRef = useRef<HTMLDivElement>(null)
-
-    const onContainerResize = useDebounceCallback(setContainerSize, 10);
-    const onPanelResize = ({ width, height }: Size) => {
-        setPanelSize({ 
-            width: Math.ceil(width!), 
-            height: Math.ceil(height!) 
-        });
-    }
     
     useResizeObserver({
         ref: previewContainerRef,
         box: 'content-box',
-        onResize: onContainerResize,
+        onResize: setContainerSize,
     })
 
     useResizeObserver({
         ref: panelRef,
         box: 'content-box',
-        onResize: onPanelResize,
+        onResize: setPanelSize,
     })
+
+    const calculateLayouts = (containerWidth: number) => {
+        type Width = Size["width"];
+        const smartphonePanel: Width = devices["smartphone"].size.width! / containerWidth * 100;
+        const tabletPanel: Width = devices["tablet"].size.width! / containerWidth * 100
+        const smartphoneLayout: Layout = [
+            (100 - smartphonePanel) / 2,
+            smartphonePanel,
+            (100 - smartphonePanel) / 2,
+        ];
+        const tabletLayout: Layout = [
+            (100 - tabletPanel) / 2,
+            tabletPanel,
+            (100 - tabletPanel) / 2,
+        ];
+        devices["smartphone"].layout = smartphoneLayout;
+        devices["tablet"].layout = tabletLayout;
+    }
 
     useEffect(() => {
         const { width, height } = containerSize;
         if (!width || !height) return;
+        setDevice(undefined);
+        calculateLayouts(width);
         switch (true) {
-            case ( width <= ( 512 + 24 ) ):
+            case ( width <= ( 768 + 24 ) ):
                 devices["tablet"].disabled = true;
                 devices["desktop"].disabled = true;
                 break;
-            case ( width > ( 512 + 24 ) && width <= ( 768 + 24 ) ):
+            case ( width > ( 768 + 24 ) && width <= ( 1024 + 24 ) ):
                 devices["tablet"].disabled = false;
                 devices["desktop"].disabled = true;
                 break;
-            case ( width > ( 768 + 24 ) ):
+            case ( width > ( 1024 + 24 ) ):
                 devices["tablet"].disabled = false;
                 devices["desktop"].disabled = false;
             default:
@@ -115,14 +134,14 @@ export const DemoPreview = ({
         }
     }, [containerSize])
 
-    const resetLayout = (layout: number[]) => {
+    const resetLayout = (layout: Layout) => {
         const panelGroup = panelGroupRef.current;
         if (!panelGroup) return;
         panelGroup.setLayout(layout)
     }
 
     const handleClick = (device: Exclude<Device["name"], undefined>) => {
-        const layout = devices[device].layout || [0,100,0];
+        const layout = devices[device].layout;        
         resetLayout(layout);
         setDevice(device);
     }
@@ -148,7 +167,9 @@ export const DemoPreview = ({
                         })}
                     </div>
                     <div>
-                        <p>{panelSize.width} x {panelSize.height}</p>
+                        { ( panelSize.width && panelSize.height ) && (
+                            <p>{Math.round(panelSize.width)} x {Math.round(panelSize.height)}</p>
+                        )}
                     </div>
                 </div>
             </CardHeader>
@@ -157,6 +178,7 @@ export const DemoPreview = ({
                 className="py-8 h-[600px] bg-foreground/5"
             >
                 <PanelGroup
+                    id="panel-group"
                     ref={panelGroupRef}
                     direction="horizontal"
                     className="items-center"
@@ -167,9 +189,16 @@ export const DemoPreview = ({
                         className="w-1.5 h-8 mr-1.5 my-auto 
                         bg-muted-foreground rounded-full" 
                     />
-                    <Panel defaultSize={100} className="min-w-96">
+                    <Panel 
+                        id="main-panel"
+                        defaultSize={100} 
+                        className={cn(
+                            "min-w-96",
+                            device === "tablet" && "min-w-[770px]",
+                        )}
+                    >
                         <div 
-                            ref={panelRef} 
+                            ref={panelRef}
                             className="max-h-[500px] flex flex-col justify-center 
                             overflow-auto bg-[url('/dot-grid.svg')] bg-center"
                         >

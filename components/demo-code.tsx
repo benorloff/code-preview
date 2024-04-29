@@ -1,7 +1,6 @@
 "use server"
 
 import { Code, BrightProps} from "bright";
-import { useTheme } from "next-themes";
 
 interface DemoCodeProps {
     title?: BrightProps["title"];
